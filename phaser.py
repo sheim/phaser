@@ -31,6 +31,7 @@ from numpy import *
 from scipy import signal
 from scipy.signal import hilbert
 from scipy.stats import nanmean,nanstd
+from numpy.linalg import svd
 import warnings
 
 from copy import deepcopy
@@ -209,8 +210,10 @@ class FourierSeries(object):
     fm.coef = zeros_like(fts[0].coef)
     fm.m = zeros_like(fts[0].m)
     for fs,w in zip(fts,wgt):
-      fm.coef += w * fs.coef
-      fm.m += w * fs.m
+      # fm.coef += w * fs.coef
+      # fm.m += w * fs.m
+      add(fm.coef, w*fs.coef, out=fm.coef, casting='unsafe')
+      add(fm.m, w*fs.m, out=fm.m, casting='unsafe')
     fm.order = fts[0].order
     fm.om = fts[0].om
     
@@ -526,9 +529,10 @@ class Phaser( object ):
     if x.shape[1] != s.shape[0]:
       raise Exception( 'sliceN:mismatch', 'Slice series must have matching columns with data' )
     
-    idx = find(( s[1:] > 0 ) & ( s[0:-1] <= 0 ))
+    # idx = find(( s[1:] > 0 ) & ( s[0:-1] <= 0 ))
+    idx = where(logical_and(( s[1:] > 0 ),( s[0:-1] <= 0 )))
     idx = idx[idx < x.shape[1]]
-    
+
     if h is not None:
       idx = idx( abs( s[idx] ) < h & abs( s[idx+1] ) < h );
     
