@@ -665,6 +665,7 @@ def test_sincos():
   """
   from numpy import sin,cos,pi,array,linspace,cumsum,asarray,dot,ones
   from pylab import plot, legend, axis, show, randint, randn, std,lstsq
+  from numpy import random
   # create separate trials and store times and data
   dats=[]
   t0 = []
@@ -678,7 +679,7 @@ def test_sincos():
   for li in xrange(N):
     l = randint(400,2000) # length of trial
     dt = pi*2.0/period + randn(l)*phaseNoise # create noisy time steps
-    t = cumsum(dt)+rand()*2*pi # starting phase is random
+    t = cumsum(dt)+random.rand()*2*pi # starting phase is random
     raw = asarray([sin(t),cos(t)]) # signal
     raw = raw + randn(*raw.shape)/snr # SNR=20 noise
     t0.append(t)
