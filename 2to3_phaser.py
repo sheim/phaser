@@ -531,7 +531,7 @@ class Phaser( object ):
     
     # idx = find(( s[1:] > 0 ) & ( s[0:-1] <= 0 ))
     idx = where(logical_and(( s[1:] > 0 ),( s[0:-1] <= 0 )))
-    idx = idx[idx < x.shape[1]]
+    idx = idx[0][idx[0] < x.shape[1]]
 
     if h is not None:
       idx = idx( abs( s[idx] ) < h & abs( s[idx+1] ) < h );
