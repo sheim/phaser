@@ -108,15 +108,15 @@ class FourierSeries(object):
        data is a row or two-dimensional array, with data points in columns
     """
     
-    phi = reshape( mod(ph + np.pi,2*np.pi) - np.pi, (1,len(ph.flat)) )
+    phi = np.reshape( np.mod(ph + np.pi,2*np.pi) - np.pi, (1,len(ph.flat)) )
     if phi.shape[1] != data.shape[1]:
       raise IndexError(
         "There are %d phase values for %d data points" 
             % (phi.shape[1],data.shape[1]))
     # Sort data by phase
-    idx = argsort(phi).flatten()
-    dat = c_[data.take(idx,axis=-1),data[:,idx[0]]]
-    phi = concatenate( (phi.take(idx),[phi.flat[idx[0]]+2*np.pi]) )
+    idx = np.argsort(phi).flatten()
+    dat = np.c_[data.take(idx,axis=-1),data[:,idx[0]]]
+    phi = np.concatenate( (phi.take(idx),[phi.flat[idx[0]]+2*np.pi]) )
     
     # Compute means values and subtract them
     #self.m = mean(dat,1).T
@@ -134,9 +134,9 @@ class FourierSeries(object):
       return
     # Compute frequency vector
     om = np.zeros( 2*order )
-    om[::2] = arange(1,order+1)
+    om[::2] = np.arange(1,order+1)
     om[1::2] = -om[::2]
-    self.om = reshape(om,(1,order*2))
+    self.om = np.reshape(om,(1,order*2))
     # Compute measure for integral
     #if any(dphi<=0):
       #raise UserWarning,"Duplicate phase values in data"
@@ -202,19 +202,19 @@ class FourierSeries(object):
     """
     N = len( fts )
     if wgt is None:
-      wgt = ones(N)/float(N)
+      wgt = np.ones(N)/float(N)
     else:
       wgt = np.asarray(wgt)
       assert wgt.size==len(fts)
     
     fm = FourierSeries()
-    fm.coef = zeros_like(fts[0].coef)
-    fm.m = zeros_like(fts[0].m)
+    fm.coef = np.zeros_like(fts[0].coef)
+    fm.m = np.zeros_like(fts[0].m)
     for fs,w in zip(fts,wgt):
       # fm.coef += w * fs.coef
       # fm.m += w * fs.m
-      add(fm.coef, w*fs.coef, out=fm.coef, casting='unsafe')
-      add(fm.m, w*fs.m, out=fm.m, casting='unsafe')
+      np.add(fm.coef, w*fs.coef, out=fm.coef, casting='unsafe')
+      np.add(fm.m, w*fs.m, out=fm.m, casting='unsafe')
     fm.order = fts[0].order
     fm.om = fts[0].om
     
@@ -305,8 +305,8 @@ def _default_psf(x):
      aren't defined in the module top-level.
   """
   return signal.lfilter( 
-    array([0.02008336556421, 0.04016673112842,0.02008336556421] ), 
-    array([1.00000000000000,-1.56101807580072,0.64135153805756] ),
+    np.array([0.02008336556421, 0.04016673112842,0.02008336556421] ), 
+    np.array([1.00000000000000,-1.56101807580072,0.64135153805756] ),
   x[0,:] )
   
 class Phaser( object ):
@@ -379,10 +379,10 @@ class Phaser( object ):
     
     rho = nanmean( abs( zeta ), 1 ).reshape(( zeta.shape[0], 1 ))
     # compute phase projected onto first principal components using self.prj
-    ph = Phaser.angleUp( np.dot( self.prj.T, vstack( [np.cos( p ) * rho, np.sin( p ) * rho] ) ))
+    ph = Phaser.angleUp( np.dot( self.prj.T, np.vstack( [np.cos( p ) * rho, np.sin( p ) * rho] ) ))
     
     # return series correction of combined phase using self.P
-    phi = real( ph + self.P.val( ph ).T )
+    phi = np.real( ph + self.P.val( ph ).T )
     pOfs2 = (p0[ido0+1] * np.exp(1j * phi.T[ido0+1]) - p0[ido0] * np.exp(1j * phi.T[ido0] )) / (p0[ido0+1] - p0[ido0])
     return phi - np.angle(np.sum(pOfs2))
   
@@ -465,7 +465,7 @@ class Phaser( object ):
       # compute protophase angle
       th = Phaser.angleUp( zetas[k] )
       
-      phi_k = 1j * ones( th.shape )
+      phi_k = 1j * np.ones( th.shape )
       
       # loop over all dimensions
       for ki in range( th.shape[0] ):
@@ -473,13 +473,13 @@ class Phaser( object ):
         phi_k[ki,:] = self.P_k[ki].val( th[ki,:] ).T + th[ki,:]
       
       # computer vectorized phase
-      q.append( vstack( [np.cos( phi_k ) * rho, np.sin( phi_k ) * rho] ) )
+      q.append( np.vstack( [np.cos( phi_k ) * rho, np.sin( phi_k ) * rho] ) )
     
     # project phase vectors using first two principal components
     W = np.hstack( q[:] )
     W = W - nanmean( W, 1 )[:,np.newaxis]
     pc = svd( W, False )[0]
-    self.prj = reshape( pc[:,0] + 1j * pc[:,1], ( pc.shape[0], 1 ) )
+    self.prj = np.reshape( pc[:,0] + 1j * pc[:,1], ( pc.shape[0], 1 ) )
     
     # Series correction of combined phase
     qz = []
@@ -633,14 +633,14 @@ class Phaser( object ):
         # normalize Fourier coefficients to a mean of 1
         fdThdt = FourierSeries().fit( ordP * 2, th[ki,:].reshape(( 1, th.shape[1])), dTheta[ki,:].reshape(( 1, dTheta.shape[1])) / dt )
         fdThdt.coef = fdThdt.coef / fdThdt.m
-        fdThdt.m = array([1])
+        fdThdt.m = np.array([1])
         
         # evaluate Fourier series for (d_t/d_theta)(theta) based on Fourier
         # approx of (d_theta/d_t)
         # normalize Fourier coefficients to a mean of 1
         fdtdTh = FourierSeries().fit( ordP, th[ki,:].reshape(( 1, th.shape[1])), 1 / fdThdt.val( th[ki,:].reshape(( 1, th.shape[1] )) ).T )
         fdtdTh.coef = fdtdTh.coef / fdtdTh.m
-        fdtdTh.m = array([1])
+        fdtdTh.m = np.array([1])
         
         # evaluate corrected phsae phi(theta) series as symbolic integration of 
         # (d_t/d_theta), this is off by a constant
@@ -694,7 +694,7 @@ def test_sincos():
  
   phr = Phaser( dats, psecfunc = lambda x : np.dot([1,-1],x)) 
   phi = [ phr.phaserEval( d ) for d in dats ] # extract phaseNoise
-  reg = array([np.linspace(0,1,t0[0].size),ones(t0[0].size)]).T
+  reg = np.array([np.linspace(0,1,t0[0].size),np.ones(t0[0].size)]).T
   tt = np.dot( reg, lstsq(reg,t0[0])[0] )
   plot(((tt-np.pi/4) % (2*np.pi))/np.pi-1, dats[0].T,'.')
   plot( (phi[0].T % (2*np.pi))/np.pi-1, dats[0].T,'x')#plot data versus phase
