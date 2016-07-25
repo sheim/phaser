@@ -14,7 +14,7 @@ in the data. This phase estimate has several desirable properties, such as:
 (3) Phase estimates are robust to systematic changes in the measurement error
 
 The top-level class of this module is Phaser. 
-An example is found in test_sincos(); it requires matplotlib
+An example is found in test_sinnp.cos(); it requires matplotlib
 
 COPYRIGHT
 
@@ -26,7 +26,8 @@ additional restriction that any use in research must appropriately cite
 the document doi: 10.1103/PhysRevE.78.051907 (above)
 """
 
-from numpy import *
+# from numpy import *
+import numpy as np
 # from phaserutil import *
 from scipy import signal
 from scipy.signal import hilbert
@@ -49,10 +50,10 @@ class FourierSeries(object):
        
        Returns rows corresponding to phi.flatten()
     """
-    phi = asarray(phi).flatten()
+    phi = np.asarray(phi).flatten()
     phi.shape = (len(phi.flat),1)
     th = phi * self.om
-    return dot(exp(1j*th),self.coef)+self.m
+    return np.dot(np.exp(1j*th),self.coef)+self.m
   
   def residuals(self,phi):
     '''
@@ -64,7 +65,7 @@ class FourierSeries(object):
   def integrate( self, z0=0 ):
     """Integrate fourier series, and set the mean values to z0
     """
-    self.m[:] = asarray(z0)
+    self.m[:] = np.asarray(z0)
     self.coef = -1j * self.coef / self.om.T
     return self
   
@@ -88,8 +89,8 @@ class FourierSeries(object):
        assert allclose( fs3.val(x)[c1:], fs2.val(x) )
     """
     assert len(other.om) == len(self.om), "Must have same order"
-    self.m = hstack((self.m,other.m))
-    self.coef = hstack((self.coef,other.coef))
+    self.m = np.hstack((self.m,other.m))
+    self.coef = np.hstack((self.coef,other.coef))
     
   def diff( self ):
     """Differentiate the fourier series"""
@@ -107,7 +108,7 @@ class FourierSeries(object):
        data is a row or two-dimensional array, with data points in columns
     """
     
-    phi = reshape( mod(ph + math.pi,2*math.pi) - math.pi, (1,len(ph.flat)) )
+    phi = reshape( mod(ph + np.pi,2*np.pi) - np.pi, (1,len(ph.flat)) )
     if phi.shape[1] != data.shape[1]:
       raise IndexError(
         "There are %d phase values for %d data points" 
@@ -115,13 +116,13 @@ class FourierSeries(object):
     # Sort data by phase
     idx = argsort(phi).flatten()
     dat = c_[data.take(idx,axis=-1),data[:,idx[0]]]
-    phi = concatenate( (phi.take(idx),[phi.flat[idx[0]]+2*math.pi]) )
+    phi = concatenate( (phi.take(idx),[phi.flat[idx[0]]+2*np.pi]) )
     
     # Compute means values and subtract them
     #self.m = mean(dat,1).T
     # mean needs to be computed by trap integration also
     dphi = diff(phi)
-    self.m = sum((dat[:,:-1] + dat[:,1:]) * .5 * dphi[newaxis,:], axis = 1) / (max(phi) - min(phi))
+    self.m = np.sum((dat[:,:-1] + dat[:,1:]) * .5 * dphi[np.newaxis,:], axis = 1) / (max(phi) - min(phi))
     #PDB.set_trace()
     dat = (dat.T - self.m).T
     # Allow 0th order (mean value) models
@@ -132,19 +133,19 @@ class FourierSeries(object):
       self.coef = None
       return
     # Compute frequency vector
-    om = zeros( 2*order )
+    om = np.zeros( 2*order )
     om[::2] = arange(1,order+1)
     om[1::2] = -om[::2]
     self.om = reshape(om,(1,order*2))
     # Compute measure for integral
     #if any(dphi<=0):
       #raise UserWarning,"Duplicate phase values in data"
-    # Apply trapezoidal rule for data points (and add 2 pi factor needed later)      
-    zd = (dat[:,1:]+dat[:,:-1])/(2.0*2*math.pi) * dphi
+    # Apply trapezoidal rule for data points (and add 2 np.pi factor needed later)      
+    zd = (dat[:,1:]+dat[:,:-1])/(2.0*2*np.pi) * dphi
     # Compute phase values for integrals
     th = self.om.T * (phi[1:]-dphi/2)
     # Coefficients are integrals
-    self.coef = dot(exp(-1j*th),zd.T)
+    self.coef = np.dot(np.exp(-1j*th),zd.T)
     return self
 
   def fromAlien( self, other ):
@@ -170,19 +171,19 @@ class FourierSeries(object):
         NxD -- same as N, but per coordinate
         2NxD -- the obvious...
     """
-    coef = asarray(coef)
+    coef = np.asarray(coef)
     if coef.shape == (1,self.coef.shape[1]):
       c = coef
     elif coef.shape[0] == self.coef.shape[0]/2:
       if coef.ndim == 1:
         c = empty( (self.coef.shape[0],1), dtype=self.coef.dtype )
         c[::2,0] = coef
-        c[1::2,0] = conj(coef)
+        c[1::2,0] = np.conj(coef)
       elif coef.ndim == 2:
         assert coef.shape[1]==self.coef.shape[1],"Same dimension"
         c = empty_like(self.coef)
         c[::2,:] = coef
-        c[1::2,:] = conj(coef)
+        c[1::2,:] = np.conj(coef)
       else:
         raise ValueError("coef.ndim must be 1 or 2")
     self.coef *= c
@@ -203,7 +204,7 @@ class FourierSeries(object):
     if wgt is None:
       wgt = ones(N)/float(N)
     else:
-      wgt = asarray(wgt)
+      wgt = np.asarray(wgt)
       assert wgt.size==len(fts)
     
     fm = FourierSeries()
@@ -265,7 +266,7 @@ class ZScore( object ):
     self.y0 = y0
     self.M = M
     (D, V) = linalg.eig( M )
-    self.S = dot( V.transpose(), diag( 1/sqrt( D ) ) )
+    self.S = np.dot( V.transpose(), np.diag( 1/np.sqrt( D ) ) )
   
   def fromData( self, y ):
     """
@@ -276,8 +277,8 @@ class ZScore( object ):
       y -- DxN -- N measurements of a time series in D dimensions
     """
     self.y0 = nanmean( y, 1 )
-    self.M = diag( nanstd( diff( y, n=2, axis=1 ), axis=1 ) )
-    self.S = diag( 1/sqrt( diag( self.M ) ) )
+    self.M = np.diag( nanstd( np.diff( y, n=2, axis=1 ), axis=1 ) )
+    self.S = np.diag( 1/np.sqrt( np.diag( self.M ) ) )
   
   def __call__( self, y ):
     """
@@ -294,12 +295,12 @@ class ZScore( object ):
     OUTPUT:
       zscores for y -- DxN
     """
-    return dot( self.S, y - self.y0.reshape( len( self.y0 ), 1 ) )
+    return np.dot( self.S, y - self.y0.reshape( len( self.y0 ), 1 ) )
 
 
 def _default_psf(x):
   """Default Poincare section function
-     by rights, this should be inside the Phaser class, but pickle
+     by rights, this should be inside the Phaser class, but np.pickle
      would barf on Phaser objects if they contained functions that
      aren't defined in the module top-level.
   """
@@ -366,24 +367,24 @@ class Phaser( object ):
     z0, ido0 = Phaser.sliceN( zeta, p0 )
     
     # Compute phase offsets for proto-phases
-    ofs = exp(-1j * angle(nanmean(z0, axis = 1)).T)
+    ofs = np.exp(-1j * np.angle(nanmean(z0, axis = 1)).T)
     
     # series correction for each dimision using self.P_k
-    th = Phaser.angleUp( zeta * ofs[:,newaxis] ) 
+    th = Phaser.angleUp( zeta * ofs[:,np.newaxis] ) 
     
     # evaluable weights based on sample length
-    p = 1j * zeros( th.shape )
+    p = 1j * np.zeros( th.shape )
     for k in range( th.shape[0] ):
       p[k,:] = self.P_k[k].val( th[k,:] ).T + th[k,:]
     
     rho = nanmean( abs( zeta ), 1 ).reshape(( zeta.shape[0], 1 ))
     # compute phase projected onto first principal components using self.prj
-    ph = Phaser.angleUp( dot( self.prj.T, vstack( [cos( p ) * rho, sin( p ) * rho] ) ))
+    ph = Phaser.angleUp( np.dot( self.prj.T, vstack( [np.cos( p ) * rho, np.sin( p ) * rho] ) ))
     
     # return series correction of combined phase using self.P
     phi = real( ph + self.P.val( ph ).T )
-    pOfs2 = (p0[ido0+1] * exp(1j * phi.T[ido0+1]) - p0[ido0] * exp(1j * phi.T[ido0] )) / (p0[ido0+1] - p0[ido0])
-    return phi - angle(sum(pOfs2))
+    pOfs2 = (p0[ido0+1] * np.exp(1j * phi.T[ido0+1]) - p0[ido0] * np.exp(1j * phi.T[ido0] )) / (p0[ido0+1] - p0[ido0])
+    return phi - np.angle(np.sum(pOfs2))
   
   def phaserTrain( self, y, C = None, ordP = None ):
     """
@@ -394,7 +395,7 @@ class Phaser( object ):
     """
     
     # if given one sample -> treat it as an ensemble with one element
-    if y.__class__ is ndarray:
+    if y.__class__ is np.ndarray:
       y = [y]
     # Copy the list container
     y = [yi for yi in y]
@@ -404,13 +405,13 @@ class Phaser( object ):
     D = y[0].shape[0]
     
     # train ZScore object based on the entire ensemble
-    self.sc = ZScore( hstack( y ), C )
+    self.sc = ZScore( np.hstack( y ), C )
     
     # initializing proto phase variable
     zetas = []
-    cycl = zeros( len( y ))
-    svm = 1j*zeros( (D, len( y )) )
-    svv = zeros( (D, len( y )) )
+    cycl = np.zeros( len( y ))
+    svm = 1j*np.zeros( (D, len( y )) )
+    svv = np.zeros( (D, len( y )) )
     
     # compute protophases for each sample in the ensemble
     for k in range( len( y ) ):
@@ -426,33 +427,33 @@ class Phaser( object ):
         raise Exception( 'newPhaser:emptySection', 'Poincare section is empty -- bailing out' )
       
       svm[:,k] = nanmean( sv, 1 )
-      svv[:,k] = var( sv, 1 ) * sv.shape[1] / (sv.shape[1] - 1)
+      svv[:,k] = np.var( sv, 1 ) * sv.shape[1] / (sv.shape[1] - 1)
 
     
     # computing phase offset based on psecfunc
     self.mangle, ofs = Phaser.computeOffset( svm, svv )
     
     # correcting phase offset for proto phase and compute weights
-    wgt = zeros( len( y ) )
-    rho_i = zeros(( len( y ), y[0].shape[0] ))
+    wgt = np.zeros( len( y ) )
+    rho_i = np.zeros(( len( y ), y[0].shape[0] ))
     for k in range( len( y ) ):
-      zetas[k] = self.mangle * exp( -1j * ofs[k] ) * zetas[k]
+      zetas[k] = self.mangle * np.exp( -1j * ofs[k] ) * zetas[k]
       wgt[k] = zetas[k].shape[0]
       rho_i[k,:] = nanmean( abs( zetas[k] ), 1 )
     
     # compute normalized weight for each dimension using weights from all samples
     wgt = wgt.reshape(( 1, len( y )))
-    rho = ( dot( wgt, rho_i ) / sum( wgt ) ).T
+    rho = ( np.dot( wgt, rho_i ) / np.sum( wgt ) ).T
     # if ordP is None -> use high enough order to reach Nyquist/2
     # 
     # if ordP is None:
-    #   ordP = ceil( max( cycl ) / 4 )
+    #   ordP = np.ceil( max( cycl ) / 4 )
     # This works well if you have one nice long segment, but for lots of little 
     # chunks it uses too few coefficients. Here we sum the coefficients and 
     # Estimate 10%
     if ordP is None:
         print(cycl)
-        ordP = floor(sum(cycl)/10)
+        ordP = np.floor(np.sum(cycl)/10)
    
     # correct protophase using seriesCorrection
     self.P_k = Phaser.seriesCorrection( zetas, ordP )
@@ -472,18 +473,18 @@ class Phaser( object ):
         phi_k[ki,:] = self.P_k[ki].val( th[ki,:] ).T + th[ki,:]
       
       # computer vectorized phase
-      q.append( vstack( [cos( phi_k ) * rho, sin( phi_k ) * rho] ) )
+      q.append( vstack( [np.cos( phi_k ) * rho, np.sin( phi_k ) * rho] ) )
     
     # project phase vectors using first two principal components
-    W = hstack( q[:] )
-    W = W - nanmean( W, 1 )[:,newaxis]
+    W = np.hstack( q[:] )
+    W = W - nanmean( W, 1 )[:,np.newaxis]
     pc = svd( W, False )[0]
     self.prj = reshape( pc[:,0] + 1j * pc[:,1], ( pc.shape[0], 1 ) )
     
     # Series correction of combined phase
     qz = []
     for k in range( len( q ) ):
-      qz.append( dot( self.prj.T, q[k] ) )
+      qz.append( np.dot( self.prj.T, q[k] ) )
     
     # store object members for the phase estimator
     self.P = Phaser.seriesCorrection( qz, ordP )[0]
@@ -492,16 +493,15 @@ class Phaser( object ):
     """
     """
     # convert variances into weights
-    svv = svv / sum( svv, 1 ).reshape( svv.shape[0], 1 )
-    
+    svv = svv / np.sum( svv, axis=1 ).reshape( svv.shape[0], 1 )
     # compute variance weighted average of phasors on cross section to give the phase offset of each protophase
-    mangle = sum( svm * svv, 1)
+    mangle = np.sum( svm * svv, axis=1)
     if any( abs( mangle ) ) < .1:
       b = find( abs( mangle ) < .1 )
       raise Exception( 'computeOffset:badmeasureOfs', len( b ) + ' measurement(s), including ' + b[0] + ' are too noisy on Poincare section' )
     
     # compute phase offsets for trials
-    mangle = conj( mangle ) / abs( mangle )
+    mangle = np.conj( mangle ) / abs( mangle )
     mangle = mangle.reshape(( len( mangle ), 1))
     svm = mangle * svm
     ofs = nanmean( svm, 0 )
@@ -509,7 +509,7 @@ class Phaser( object ):
       b = find( abs( ofs ) < .1 )
       raise Exception( 'computeOffset:badTrialOfs', len( b ) + ' trial(s), including ' + b[0] + ' are too noisy on Poincare section' )
     
-    return mangle, angle( ofs )
+    return mangle, np.angle( ofs )
   
   computeOffset = staticmethod( computeOffset )
   
@@ -530,7 +530,7 @@ class Phaser( object ):
       raise Exception( 'sliceN:mismatch', 'Slice series must have matching columns with data' )
     
     # idx = find(( s[1:] > 0 ) & ( s[0:-1] <= 0 ))
-    idx = where(logical_and(( s[1:] > 0 ),( s[0:-1] <= 0 )))
+    idx = np.where(np.logical_and(( s[1:] > 0 ),( s[0:-1] <= 0 )))
     idx = idx[0][idx[0] < x.shape[1]]
 
     if h is not None:
@@ -539,7 +539,7 @@ class Phaser( object ):
     N = x.shape[0]
     
     if len( idx ) is 0:
-      return zeros(( N, 0 )), idx
+      return np.zeros(( N, 0 )), idx
     
     wBfr = abs( s[idx] )
     wBfr = wBfr.reshape((1, len( wBfr )))
@@ -560,7 +560,7 @@ class Phaser( object ):
       returns DxN phase angle of zeta
     """
     # unwind angles
-    th = unwrap( angle ( zeta ) )
+    th = np.unwrap( np.angle ( zeta ) )
     # reverse decreasing sequences
     bad = th[:,0] > th[:,-1]
     if any( bad ):
@@ -576,8 +576,8 @@ class Phaser( object ):
     ph = Phaser.angleUp( zeta )
 
     # estimate nCyc in each dimension
-    nCyc = abs( ph[:,-1] - ph[:,0] ) / 2 / pi
-    cycl = ceil( zeta.shape[1] / max( nCyc ) )
+    nCyc = abs( ph[:,-1] - ph[:,0] ) / 2 / np.pi
+    cycl = np.ceil( zeta.shape[1] / max( nCyc ) )
     # if nCyc < 7 -> warning
     # elif range(nCyc) > 2 -> warning
     # else truncate beginning and ending cycles
@@ -585,7 +585,7 @@ class Phaser( object ):
       warnings.warn( "PhaserForSample:tooShort" )
     elif max( nCyc ) - min( nCyc ) > 2:
       warnings.warn( "PhaserForSample:nCycMismatch" )
-    elif isinf(cycl):
+    elif np.isinf(cycl):
       warnings.warn( "PhaserForSample:InfiniteCycles" )
     else:
       zeta = zeta[:,cycl:-cycl]
@@ -609,7 +609,7 @@ class Phaser( object ):
     proto = []
     
     # loop over all samples of the ensemble
-    wgt = zeros( len( zetas ) )
+    wgt = np.zeros( len( zetas ) )
     for k in range( len( zetas ) ):
       proto.append([])
       # compute protophase angle (theta)
@@ -619,7 +619,7 @@ class Phaser( object ):
       
       # generate time variable
       # Liberate this section of code
-      t = linspace( 0, 1, N )      
+      t = np.linspace( 0, 1, N )      
       # compute d_theta
       dTheta = diff( theta, 1 )
       # compute d_t
@@ -650,7 +650,7 @@ class Phaser( object ):
       # compute sample weight based on sample length
       wgt[k] = zeta.shape[0]
       
-    wgt = wgt / sum( wgt )
+    wgt = wgt / np.sum( wgt )
     
     # return phase estimation as weighted average of phase estimation of all samples
     proto_k = []
@@ -667,14 +667,15 @@ def test_sincos():
   
   Demo courtesy of Jimmy Sastra, U. Penn 2011
   """
-  from numpy import sin,cos,pi,array,linspace,cumsum,asarray,dot,ones
+  import numpy as np
+  # from numpy import sin,cos,np.pi,array,linspace,np.cumsum,np.asarray,dot,ones
   from pylab import plot, legend, axis, show, randint, randn, std,lstsq
   from numpy import random
   # create separate trials and store times and data
   dats=[]
   t0 = []
   period = 55 # i
-  phaseNoise = 0.05/sqrt(period)
+  phaseNoise = 0.05/np.sqrt(period)
   snr = 20
   N = 10
   print(N,"trials with:")
@@ -682,21 +683,21 @@ def test_sincos():
   print("\tlength = [", end=' ')
   for li in range(N):
     l = randint(400,2000) # length of trial
-    dt = pi*2.0/period + randn(l)*phaseNoise # create noisy time steps
-    t = cumsum(dt)+random.rand()*2*pi # starting phase is random
-    raw = asarray([sin(t),cos(t)]) # signal
+    dt = np.pi*2.0/period + randn(l)*phaseNoise # create noisy time steps
+    t = np.cumsum(dt)+random.rand()*2*np.pi # starting phase is random
+    raw = np.asarray([np.sin(t),np.cos(t)]) # signal
     raw = raw + randn(*raw.shape)/snr # SNR=20 noise
     t0.append(t)
-    dats.append( raw - nanmean(raw,axis=1)[:,newaxis] )
+    dats.append( raw - nanmean(raw,axis=1)[:,np.newaxis] )
     print(l, end=' ')
   print("]")
  
-  phr = Phaser( dats, psecfunc = lambda x : dot([1,-1],x)) 
+  phr = Phaser( dats, psecfunc = lambda x : np.dot([1,-1],x)) 
   phi = [ phr.phaserEval( d ) for d in dats ] # extract phaseNoise
-  reg = array([linspace(0,1,t0[0].size),ones(t0[0].size)]).T
-  tt = dot( reg, lstsq(reg,t0[0])[0] )
-  plot(((tt-pi/4) % (2*pi))/pi-1, dats[0].T,'.')
-  plot( (phi[0].T % (2*pi))/pi-1, dats[0].T,'x')#plot data versus phase
+  reg = array([np.linspace(0,1,t0[0].size),ones(t0[0].size)]).T
+  tt = np.dot( reg, lstsq(reg,t0[0])[0] )
+  plot(((tt-np.pi/4) % (2*np.pi))/np.pi-1, dats[0].T,'.')
+  plot( (phi[0].T % (2*np.pi))/np.pi-1, dats[0].T,'x')#plot data versus phase
   
   legend(['sin(t)','cos(t)','sin(phi)','cos(phi)'])
   axis([-1,1,-1.2,1.2])
