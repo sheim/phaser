@@ -121,7 +121,7 @@ class FourierSeries(object):
     # Compute means values and subtract them
     #self.m = mean(dat,1).T
     # mean needs to be computed by trap integration also
-    dphi = diff(phi)
+    dphi = np.diff(phi)
     self.m = np.sum((dat[:,:-1] + dat[:,1:]) * .5 * dphi[np.newaxis,:], axis = 1) / (max(phi) - min(phi))
     #PDB.set_trace()
     dat = (dat.T - self.m).T
@@ -621,9 +621,9 @@ class Phaser( object ):
       # Liberate this section of code
       t = np.linspace( 0, 1, N )      
       # compute d_theta
-      dTheta = diff( theta, 1 )
+      dTheta = np.diff( theta, 1 )
       # compute d_t
-      dt = diff( t )
+      dt = np.diff( t )
       # mid-sampling of protophase angle
       th = ( theta[:,1:] + theta[:,:-1] ) / 2.0
       
