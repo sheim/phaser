@@ -26,13 +26,10 @@ additional restriction that any use in research must appropriately cite
 the document doi: 10.1103/PhysRevE.78.051907 (above)
 """
 
-# from numpy import *
 import numpy as np
 # from phaserutil import *
 from scipy import signal
-from scipy.signal import hilbert
-from scipy.stats import nanmean,nanstd
-from numpy.linalg import svd
+from scipy import stats
 import warnings
 
 from copy import deepcopy
@@ -247,7 +244,7 @@ class ZScore( object ):
     # elif we got y --> use fromData
     # else --> create empty object with None in members 
     if M is not None:
-      self.fromCovAndMean( nanmean(y, 1), M)
+      self.fromCovAndMean( stats.nanmean(y, 1), M)
     elif y is not None:
       self.fromData( y )
     else:
@@ -276,8 +273,8 @@ class ZScore( object ):
     INPUT:
       y -- DxN -- N measurements of a time series in D dimensions
     """
-    self.y0 = nanmean( y, 1 )
-    self.M = np.diag( nanstd( np.diff( y, n=2, axis=1 ), axis=1 ) )
+    self.y0 = stats.nanmean( y, 1 )
+    self.M = np.diag( stats.nanstd( np.diff( y, n=2, axis=1 ), axis=1 ) )
     self.S = np.diag( 1/np.sqrt( np.diag( self.M ) ) )
   
   def __call__( self, y ):
@@ -321,7 +318,7 @@ class Phaser( object ):
     psf -- callable -- callback to psecfun
   """
 
-  def __init__( self, y = None, C = None, ordP = None, psecfunc = _default_psf, protophfun = hilbert ):
+  def __init__( self, y = None, C = None, ordP = None, psecfunc = _default_psf, protophfun = signal.hilbert ):
     """
     Initilizing/training a phaser object
     INPUT:
@@ -367,7 +364,7 @@ class Phaser( object ):
     z0, ido0 = Phaser.sliceN( zeta, p0 )
     
     # Compute phase offsets for proto-phases
-    ofs = np.exp(-1j * np.angle(nanmean(z0, axis = 1)).T)
+    ofs = np.exp(-1j * np.angle(stats.nanmean(z0, axis = 1)).T)
     
     # series correction for each dimision using self.P_k
     th = Phaser.angleUp( zeta * ofs[:,np.newaxis] ) 
@@ -377,7 +374,7 @@ class Phaser( object ):
     for k in range( th.shape[0] ):
       p[k,:] = self.P_k[k].val( th[k,:] ).T + th[k,:]
     
-    rho = nanmean( abs( zeta ), 1 ).reshape(( zeta.shape[0], 1 ))
+    rho = stats.nanmean( abs( zeta ), 1 ).reshape(( zeta.shape[0], 1 ))
     # compute phase projected onto first principal components using self.prj
     ph = Phaser.angleUp( np.dot( self.prj.T, np.vstack( [np.cos( p ) * rho, np.sin( p ) * rho] ) ))
     
@@ -426,7 +423,7 @@ class Phaser( object ):
       if idx.shape[-1] == 0:
         raise Exception( 'newPhaser:emptySection', 'Poincare section is empty -- bailing out' )
       
-      svm[:,k] = nanmean( sv, 1 )
+      svm[:,k] = stats.nanmean( sv, 1 )
       svv[:,k] = np.var( sv, 1 ) * sv.shape[1] / (sv.shape[1] - 1)
 
     
@@ -439,7 +436,7 @@ class Phaser( object ):
     for k in range( len( y ) ):
       zetas[k] = self.mangle * np.exp( -1j * ofs[k] ) * zetas[k]
       wgt[k] = zetas[k].shape[0]
-      rho_i[k,:] = nanmean( abs( zetas[k] ), 1 )
+      rho_i[k,:] = stats.nanmean( abs( zetas[k] ), 1 )
     
     # compute normalized weight for each dimension using weights from all samples
     wgt = wgt.reshape(( 1, len( y )))
@@ -452,7 +449,6 @@ class Phaser( object ):
     # chunks it uses too few coefficients. Here we sum the coefficients and 
     # Estimate 10%
     if ordP is None:
-        print(cycl)
         ordP = np.floor(np.sum(cycl)/10)
    
     # correct protophase using seriesCorrection
@@ -477,8 +473,8 @@ class Phaser( object ):
     
     # project phase vectors using first two principal components
     W = np.hstack( q[:] )
-    W = W - nanmean( W, 1 )[:,np.newaxis]
-    pc = svd( W, False )[0]
+    W = W - stats.nanmean( W, 1 )[:,np.newaxis]
+    pc = np.linalg.svd( W, False )[0]
     self.prj = np.reshape( pc[:,0] + 1j * pc[:,1], ( pc.shape[0], 1 ) )
     
     # Series correction of combined phase
@@ -504,7 +500,7 @@ class Phaser( object ):
     mangle = np.conj( mangle ) / abs( mangle )
     mangle = mangle.reshape(( len( mangle ), 1))
     svm = mangle * svm
-    ofs = nanmean( svm, 0 )
+    ofs = stats.nanmean( svm, 0 )
     if any( abs( ofs ) < .1 ):
       b = find( abs( ofs ) < .1 )
       raise Exception( 'computeOffset:badTrialOfs', len( b ) + ' trial(s), including ' + b[0] + ' are too noisy on Poincare section' )
@@ -668,9 +664,9 @@ def test_sincos():
   Demo courtesy of Jimmy Sastra, U. Penn 2011
   """
   import numpy as np
-  # from numpy import sin,cos,np.pi,array,linspace,np.cumsum,np.asarray,dot,ones
-  from pylab import plot, legend, axis, show, randint, randn, std,lstsq
+  import matplotlib.pyplot as plt
   from numpy import random
+
   # create separate trials and store times and data
   dats=[]
   t0 = []
@@ -682,26 +678,26 @@ def test_sincos():
   print("\tperiod %.2g"%period,"(samples)\n\tSNR %.2g"%snr,"\n\tphase noise %.2g"%phaseNoise,"(radian/cycle)")
   print("\tlength = [", end=' ')
   for li in range(N):
-    l = randint(400,2000) # length of trial
-    dt = np.pi*2.0/period + randn(l)*phaseNoise # create noisy time steps
+    l = random.randint(400,2000) # length of trial
+    dt = np.pi*2.0/period + random.randn(l)*phaseNoise # create noisy time steps
     t = np.cumsum(dt)+random.rand()*2*np.pi # starting phase is random
     raw = np.asarray([np.sin(t),np.cos(t)]) # signal
-    raw = raw + randn(*raw.shape)/snr # SNR=20 noise
+    raw = raw + random.randn(*raw.shape)/snr # SNR=20 noise
     t0.append(t)
-    dats.append( raw - nanmean(raw,axis=1)[:,np.newaxis] )
+    dats.append( raw - stats.nanmean(raw,axis=1)[:,np.newaxis] )
     print(l, end=' ')
   print("]")
  
   phr = Phaser( dats, psecfunc = lambda x : np.dot([1,-1],x)) 
   phi = [ phr.phaserEval( d ) for d in dats ] # extract phaseNoise
   reg = np.array([np.linspace(0,1,t0[0].size),np.ones(t0[0].size)]).T
-  tt = np.dot( reg, lstsq(reg,t0[0])[0] )
-  plot(((tt-np.pi/4) % (2*np.pi))/np.pi-1, dats[0].T,'.')
-  plot( (phi[0].T % (2*np.pi))/np.pi-1, dats[0].T,'x')#plot data versus phase
+  tt = np.dot( reg, np.linalg.lstsq(reg,t0[0])[0] )
+  plt.plot(((tt-np.pi/4) % (2*np.pi))/np.pi-1, dats[0].T,'.')
+  plt.plot( (phi[0].T % (2*np.pi))/np.pi-1, dats[0].T,'x') # plot data versus phase
   
-  legend(['sin(t)','cos(t)','sin(phi)','cos(phi)'])
-  axis([-1,1,-1.2,1.2])
-  show()
+  plt.legend(['sin(t)','cos(t)','sin(phi)','cos(phi)'])
+  plt.axis([-1,1,-1.2,1.2])
+  plt.show()
 
 if __name__=="__main__":
   test_sincos()
