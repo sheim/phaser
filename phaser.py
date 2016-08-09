@@ -493,7 +493,7 @@ class Phaser( object ):
     # compute variance weighted average of phasors on cross section to give the phase offset of each protophase
     mangle = np.sum( svm * svv, axis=1)
     if any( abs( mangle ) ) < .1:
-      b = find( abs( mangle ) < .1 )
+      b = np.where( abs( mangle ) < .1 )
       raise Exception( 'computeOffset:badmeasureOfs', len( b ) + ' measurement(s), including ' + b[0] + ' are too noisy on Poincare section' )
     
     # compute phase offsets for trials
@@ -502,7 +502,7 @@ class Phaser( object ):
     svm = mangle * svm
     ofs = stats.nanmean( svm, 0 )
     if any( abs( ofs ) < .1 ):
-      b = find( abs( ofs ) < .1 )
+      b = np.where( abs(ofs) < .1 )
       raise Exception( 'computeOffset:badTrialOfs', len( b ) + ' trial(s), including ' + b[0] + ' are too noisy on Poincare section' )
     
     return mangle, np.angle( ofs )
